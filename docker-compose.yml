@@ -1,0 +1,240 @@
+version: "3"
+
+networks:
+  internal:
+
+services:
+  organizr:
+    container_name: organizr
+    hostname: organizr
+    image: organizr/organizr
+    restart: unless-stopped
+    networks:
+      - internal
+    ports:
+      - 80:80
+    volumes:
+      - './organizr:/config'
+    environment:
+      - fpm=true
+      - branch=v2-master
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+
+  portainer:
+    image: portainer/portainer-ce
+    container_name: portainer
+    ports:
+      - 9000:9000
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - ./portainer:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+
+  nextcloud:
+    image: linuxserver/nextcloud
+    container_name: nextcloud
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - ./nextcloud/config:/config
+      - ${NEXTCLOUD_PATH}:/data
+    ports:
+      - 443:443
+    restart: unless-stopped
+
+  wireguard:
+    image: linuxserver/wireguard
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - SERVERURL=${SERVER_EXTERNAL_URL}
+      - SERVERPORT=51820
+      - PEERS=3
+      - PEERDNS=auto
+      - INTERNAL_SUBNET=10.13.13.0
+    volumes:
+      - ./wireguard/config:/config
+      - /lib/modules:/lib/modules
+    ports:
+      - 51820:51820/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+
+  airconnect:
+    container_name: airconnect
+    image: 1activegeek/airconnect
+    network_mode: host
+    restart: unless-stopped
+
+  adguardhome:
+    container_name: adguardhome
+    image: adguard/adguardhome
+    network_mode: host
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - ./adguardhome/work:/opt/adguardhome/work
+      - ./adguardhome/conf:/opt/adguardhome/conf
+    restart: unless-stopped
+
+  plex:
+    image: linuxserver/plex
+    container_name: plex
+    network_mode: host
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - VERSION=docker
+    volumes:
+      - ./plex:/config
+      - ./plex/transc:/transcode
+      - ${TV_SHOW_PATH}:/tv
+      - ${MOVIE_PATH}:/movies
+    restart: unless-stopped
+
+  tautulli:
+    image: linuxserver/tautulli
+    container_name: tautulli
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./tautulli:/config
+      - ./tautulli:/logs
+    ports:
+      - 8181:8181
+    restart: unless-stopped
+
+  sonarr:
+    image: linuxserver/sonarr
+    container_name: sonarr
+    networks:
+      - internal
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./sonarr:/config
+      - ${TV_SHOW_PATH}:/tv
+      - ${DOWNLOAD_PATH}:/downloads
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+
+  radarr:
+    image: linuxserver/radarr
+    container_name: radarr
+    networks:
+      - internal
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./radarr:/config
+      - ${MOVIE_PATH}:/movies
+      - ${DOWNLOAD_PATH}:/downloads
+    ports:
+      - 7878:7878
+    restart: unless-stopped
+
+  bazarr:
+    image: linuxserver/bazarr
+    container_name: bazarr
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    networks:
+      - internal
+    volumes:
+      - ./bazarr:/config
+      - ${MOVIE_PATH}:/movies
+      - ${TV_SHOW_PATH}:/tv
+    ports:
+      - 6767:6767
+    restart: unless-stopped
+
+  transmission:
+    image: linuxserver/transmission
+    container_name: transmission
+    networks:
+      - internal
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+      - TRANSMISSION_WEB_HOME=/combustion-release/
+      - USER=${TRANSMISSION_USER} # sonarr&radarr don't work w/o credentials?
+      - PASS=${TRANSMISSION_PASSWORD} # sonarr&radarr don't work w/o credentials?
+
+    volumes:
+      - ./transmission/config:/config
+      - ${DOWNLOAD_PATH}:/downloads
+    ports:
+      - 9091:9091
+      - 51413:51413
+      - 51413:51413/udp
+    restart: unless-stopped
+
+  ombi:
+    image: linuxserver/ombi
+    container_name: ombi
+    networks:
+      - internal
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./ombi:/config
+    ports:
+      - 3579:3579
+    restart: unless-stopped
+
+  jackett:
+    image: linuxserver/jackett
+    container_name: jackett
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./jackett:/config
+      - ${DOWNLOAD_PATH}:/downloads
+    ports:
+      - 9117:9117
+    restart: unless-stopped
+
+  glances:
+    image: vimagick/glances
+    container_name: glances
+    volumes:
+      - ./glances:/etc/glances
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - GLANCES_OPT=-w
+    ports:
+      - 61208:61208
+      - 61209:61209
+    pid: host
+    restart: unless-stopped
