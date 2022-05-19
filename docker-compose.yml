@@ -238,3 +238,61 @@ services:
       - 61209:61209
     pid: host
     restart: unless-stopped
+
+  homeassistant:
+    container_name: homeassistant
+    image: "ghcr.io/home-assistant/home-assistant:stable"
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ}
+    volumes:
+      - ./homeassistant:/config
+      - /etc/localtime:/etc/localtime:ro
+    restart: unless-stopped
+    privileged: true
+    network_mode: host
+    depends_on:
+      -  mariadb
+
+  mariadb:
+    image: mariadb/server:10.3
+    container_name: mariadb
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ha
+      MYSQL_USER: ${HA_MYSQL_USER}
+      MYSQL_PASSWORD: ${HA_MYSQL_PASSWORD}
+    volumes:
+      - ./mariadb:/var/lib/mysql
+    ports:
+      - 3306:3306
+
+  vscode:
+    container_name: vscode
+    image: codercom/code-server
+    volumes:
+      - .:/home/coder/project
+      - ./vscode:/home/coder/.local/share/code-server
+    ports:
+      - 8443:8080
+    command: code-server --auth password --disable-telemetry /home/coder/project
+    environment:
+      - PASSWORD=${VSCODE_PASSWORD}
+      - TZ=${TZ}
+    restart: unless-stopped
+
+    #deconz:
+    #  image: marthoc/deconz
+    #  container_name: deconz
+    #  network_mode: host
+    #  restart: unless-stopped
+    #  volumes:
+    #    - ./deconz:/root/.local/share/dresden-elektronik/deCONZ
+    #    - /etc/localtime:/etc/localtime:ro
+    #  devices:
+    #    - /dev/ttyACM0
+    #  environment:
+    #    - DECONZ_WS_PORT=8081
+    #    - DECONZ_WEB_PORT=40850
