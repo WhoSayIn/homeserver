@@ -4,6 +4,28 @@ networks:
   internal:
 
 services:
+  swag:
+    image: linuxserver/swag
+    container_name: swag
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ./swag:/config
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - EMAIL=${EMAIL}
+      - URL=${DUCKDNS_DOMAIN}
+        #- SUBDOMAINS=wildcard
+      - VALIDATION=duckdns
+      - DUCKDNSTOKEN=${DUCKDNS_TOKEN}
+    ports:
+      - 80:80
+      - 443:443
+
   organizr:
     container_name: organizr
     hostname: organizr
@@ -12,7 +34,8 @@ services:
     networks:
       - internal
     ports:
-      - 80:80
+      - 88:80
+        #- 80:80
     volumes:
       - './organizr:/config'
     environment:
@@ -48,7 +71,8 @@ services:
       - ./nextcloud/config:/config
       - ${NEXTCLOUD_PATH}:/data
     ports:
-      - 443:443
+      - 447:443
+        #- 443:443
     restart: unless-stopped
 
   wireguard:
@@ -107,20 +131,6 @@ services:
       - ./plex/transc:/transcode
       - ${TV_SHOW_PATH}:/tv
       - ${MOVIE_PATH}:/movies
-    restart: unless-stopped
-
-  tautulli:
-    image: linuxserver/tautulli
-    container_name: tautulli
-    environment:
-      - PUID=${PUID}
-      - PGID=${PGID}
-      - TZ=${TZ}
-    volumes:
-      - ./tautulli:/config
-      - ./tautulli:/logs
-    ports:
-      - 8181:8181
     restart: unless-stopped
 
   sonarr:
@@ -218,6 +228,8 @@ services:
       - PUID=${PUID}
       - PGID=${PGID}
       - TZ=${TZ}
+    networks:
+      - internal
     volumes:
       - ./jackett:/config
       - ${DOWNLOAD_PATH}:/downloads
@@ -225,23 +237,10 @@ services:
       - 9117:9117
     restart: unless-stopped
 
-  glances:
-    image: vimagick/glances
-    container_name: glances
-    volumes:
-      - ./glances:/etc/glances
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - GLANCES_OPT=-w
-    ports:
-      - 61208:61208
-      - 61209:61209
-    pid: host
-    restart: unless-stopped
 
   homeassistant:
     container_name: homeassistant
-    image: "ghcr.io/home-assistant/home-assistant:stable"
+    image: "ghcr.io/home-assistant/home-assistant:latest"
     environment:
       - PUID=${PUID}
       - PGID=${PGID}
@@ -260,6 +259,9 @@ services:
     container_name: mariadb
     restart: unless-stopped
     environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      TZ: ${TZ}
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ha
       MYSQL_USER: ${HA_MYSQL_USER}
@@ -269,30 +271,29 @@ services:
     ports:
       - 3306:3306
 
-  vscode:
-    container_name: vscode
-    image: codercom/code-server
-    volumes:
-      - .:/home/coder/project
-      - ./vscode:/home/coder/.local/share/code-server
-    ports:
-      - 8443:8080
-    command: code-server --auth password --disable-telemetry /home/coder/project
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: duckdns
     environment:
-      - PASSWORD=${VSCODE_PASSWORD}
       - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - SUBDOMAINS=${DUCKDNS_DOMAIN}
+      - TOKEN=${DUCKDNS_TOKEN}
+      - LOG_FILE=false
+    volumes:
+      - ./duckdns:/config
     restart: unless-stopped
 
-    #deconz:
-    #  image: marthoc/deconz
-    #  container_name: deconz
-    #  network_mode: host
-    #  restart: unless-stopped
-    #  volumes:
-    #    - ./deconz:/root/.local/share/dresden-elektronik/deCONZ
-    #    - /etc/localtime:/etc/localtime:ro
-    #  devices:
-    #    - /dev/ttyACM0
-    #  environment:
-    #    - DECONZ_WS_PORT=8081
-    #    - DECONZ_WEB_PORT=40850
+  octoprint:
+    image: octoprint/octoprint
+    restart: unless-stopped
+    ports:
+      - 808:80
+    # devices:
+    # use `python -m serial.tools.miniterm` to see what the name is of the printer, this requires pyserial
+    #  - /dev/ttyACM0:/dev/ttyACM0
+    #  - /dev/video0:/dev/video0
+    volumes:
+     - ./octoprint:/octoprint
+
